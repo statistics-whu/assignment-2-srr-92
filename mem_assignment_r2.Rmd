@@ -1,0 +1,629 @@
+---
+title: "Solution for MEM Assignment r2"
+CJKmainfont: SimSun
+author: "邵瑞瑞"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  word_document:
+    toc: yes
+  html_document:
+    code_folding: show
+    fig_caption: yes
+    fig_width: 10
+    highlight: tango
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+---
+
+```{r setup, include=FALSE,echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = FALSE,
+	fig.align = "center",
+	message = FALSE,
+	warning = FALSE,
+	out.width = "100%",
+	split = FALSE
+)
+```
+
+```{r library, echo=FALSE}
+library(tidyverse)
+library(kableExtra)
+library(lubridate)
+library(scales)
+library(plotly)
+library(patchwork)
+library(ggrepel)
+library(knitr)
+```
+```{r skimr, include=FALSE}
+library(skimr) #skim()数据概况分析
+```
+```{r xlsx, include=FALSE}
+library(readxl) #读取xlsx文件且表格含中文
+```
+
+
+
+# Question #1:BigBangTheory. (Attached Data: BigBangTheory)
+
+```{r BigBangTheory, include=FALSE}
+BigBangTheory<- read_csv("D:/武汉大学/商务经济统计/作业2/数据/BigBangTheory.csv")
+```
+
+## a. Compute the minimum and the maximum number of viewers.
+
+```{r data, echo=FALSE}
+summary(BigBangTheory$`Viewers (millions)`)
+```
+The minimum is 13.3, the maximum number of viewers is 16.5
+
+## b. Compute the mean, median, and mode.
+
+```{r mode, echo=FALSE}
+mode_df <- BigBangTheory %>%
+  count(`Viewers (millions)`) %>%
+  filter(n == max(n)) %>%
+  pull(`Viewers (millions)`)
+mode_df
+```
+Mean=15.04; median = 15.00; mode = 13.6; 14.0; 16.1; 16.2
+
+## c.Compute the first and third quartiles.
+1st Qu.=14.10, 3rd Qu.=16.00
+
+## d. has viewership grown or declined over the 2011–2012 season? Discuss.
+```{r line_point, echo=FALSE}
+ggplot(BigBangTheory, aes(x = Air_Date, y = `Viewers (millions)`)) +
+  geom_line(color = "blue") + 
+  geom_point(color = "red") +  
+  scale_x_date(date_labels = "%Y-%m-%d", breaks = BigBangTheory$Air_Date) +  
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5))  
+```
+```{r mean, echo=FALSE}
+BigBangTheory <- BigBangTheory %>%
+  mutate(
+    Viewers_change = `Viewers (millions)` - lag(`Viewers (millions)`),  
+    Percent_change = (Viewers_change / lag(`Viewers (millions)`)) * 100 )
+
+average_change <- mean(BigBangTheory$Viewers_change, na.rm = TRUE)
+average_percent_change <- mean(BigBangTheory$Percent_change, na.rm = TRUE)
+
+cat("average_change","==",average_change,"/n")    
+cat("average_percent_change","==",average_percent_change)
+```
+During the 2011-2012 period, viewership declined.   
+1.From the line chart, we can observe the trend in viewership. The number of viewers continuously declined from the episode on 2012-02-23 to the episode on 2012-04-05, with the episode on 2012-04-05 reaching the lowest viewership level in history.   
+2.On average, the viewership of each episode is 40,000 fewer than the previous episode, showing a declining trend. The average decline in viewership per episode relative to the previous episode is approximately 11.35%. Overall, viewership during the 2011-2012 period experienced a significant decrease.
+
+
+# Question #2: NBAPlayerPts. (Attached Data: NBAPlayerPts)
+
+```{r NBAPlayerPts, echo=FALSE}
+NBAPlayerPts<- read_csv("D:/武汉大学/商务经济统计/作业2/数据/NBAPlayerPts.csv")
+```
+
+## a. Show the frequency distribution.
+
+```{r table, echo=FALSE}
+breaks <- seq(10, 30, by = 2)
+PPG_binned <- cut(NBAPlayerPts$PPG, breaks = breaks, right = TRUE, include.lowest = TRUE)
+table(PPG_binned)
+```
+## b. Show the relative frequency distribution.
+
+```{r relative, echo=FALSE}
+freq_table <- table(PPG_binned)
+relative_freq_table <- freq_table / sum(freq_table)
+relative_freq_table
+```
+
+## c. Show the cumulative percent frequency distribution.
+```{r cumulative_freq_table, echo=FALSE}
+cumulative_freq_table <- cumsum(relative_freq_table)
+cumulative_freq_table
+```
+
+## d. Develop a histogram for the average number of points scored per game.
+
+```{r hist, echo=FALSE}
+
+hist(NBAPlayerPts$PPG, 
+     breaks = 10,   
+     col = "white",
+     border = "black")
+```
+
+## e. Do the data appear to be skewed? Explain.
+
+```{r qqnorm, echo=FALSE}
+qqnorm(NBAPlayerPts$PPG)
+qqline(NBAPlayerPts$PPG, col = "red")
+```
+1.The histogram of the PPG data shows a longer right tail, indicating that the data is right-skewed (positively skewed).   
+2.The Q-Q plot reveals that the data points on the right side deviate significantly from the diagonal line, suggesting the presence of skewness in the data.   
+
+
+## f. What percentage of the players averaged at least 20 points per game?
+```{r players, echo=FALSE}
+players_at_least_20 <- sum(NBAPlayerPts$PPG >= 20, na.rm = TRUE)
+percentage <- (players_at_least_20 / 50) * 100
+cat(percentage,"%",sep = "")
+```
+# Question #3: A researcher reports survey results by stating that the standard error of the mean is 20. The population standard deviation is 500.
+
+## a. How large was the sample used in this survey?
+```{r sample, echo=FALSE}
+sigma <- 500        
+SEM <- 20          
+n <- (sigma / SEM)^2
+cat("The sample size is",n)
+```
+## b. What is the probability that the point estimate was within ±25 of the population mean?
+```{r probability, echo=FALSE}
+Z_lower <- -25 / SEM
+Z_upper <- 25 / SEM
+probability <- pnorm(Z_upper) - pnorm(Z_lower)
+probability_rounded <- round(probability, 2)
+cat("The probability is",probability_rounded)
+```
+
+# Question #4 Young Professional Magazine (Attached Data: Professional)
+
+```{r Professional, include=FALSE}
+Professional<- read_csv("D:/武汉大学/商务经济统计/作业2/数据/Professional.csv")
+```
+
+## a. Develop appropriate descriptive statistics to summarize the data.
+
+```{r skim, echo=FALSE}
+Professional$Gender <- factor(Professional$Gender)
+Professional$`Real Estate Purchases` <- factor(Professional$`Real Estate Purchases`)
+Professional$`Broadband Access` <- factor(Professional$`Broadband Access`)
+Professional$`Have Children` <- factor(Professional$`Have Children`)
+skim(Professional)
+```
+
+## b. Develop 95% confidence intervals for the mean age and household income of subscribers.
+
+```{r ci_age, echo=FALSE}
+result_95 <- t.test(Professional$Age, conf.level = 0.95)
+result_95$conf.int
+```
+```{r ci_fage, eval=FALSE, include=FALSE}
+mean_age <- mean(Professional$Age)
+
+# 初步判断Age样本近似正态分布（hist）    样本标准差
+sd_age <- sd(Professional$Age)
+
+# 样本量
+n <- length(Professional$Age)
+
+# z值（95%置信水平）
+z_value <- qnorm(0.975)  # 或直接用 1.96
+
+# 计算标准误差
+se <- sd_age / sqrt(n)
+
+# 计算置信区间
+ci_lower <- mean_age - z_value * se
+ci_upper <- mean_age + z_value * se
+
+# 输出结果
+cat("Age95%置信区间为：[", ci_lower, ",", ci_upper, "]\n")
+```
+
+95% confidence that the mean age of subscribers is between 29.72 and 30.50 years of age.
+
+```{r ci_Household_Income, echo=FALSE}
+result_95 <- t.test(Professional$`Household Income ($)`, conf.level = 0.95)
+result_95$conf.int
+```
+95% confidence that the mean household income of subscribers is between $71,079 and $77,840.
+
+
+## c.Develop 95% confidence intervals for the proportion of subscribers who have broadband access at home and the proportion of subscribers who have children.
+
+
+```{r ci_Broadband_children, echo=FALSE}
+numer_Broadband <- 256
+ numer_children <- 219
+ n <- 410
+ result_Broadband <- prop.test(numer_Broadband, n, conf.level = 0.95)
+ result_Broadband
+ result_children <- prop.test(numer_children, n, conf.level = 0.95)
+ result_children
+```
+95% confidence intervals for the proportion of subscribers who have broadband access at home is between 0.58 and 0.67.  
+
+95% confidence intervals for the proportion of subscribers who who have children is between 0.48 and 0.58.
+
+
+## d.Would *Young Professional* be a good advertising outlet for online brokers? Justify your conclusion with statistical data.
+
+Yes.
+
+1.Age: Online brokers typically achieve better advertising effectiveness when targeting people aged 25-55. Young Professional subscribers are aged between 19 and 42, with an average age of 30, and 75% of subscribers are older than 28, which places them within the target demographic.
+
+2.Investment needs or interests: The average total value of financial investments is $28,538, and 75% of subscribers have a total financial investment value exceeding $18,300. The average number of transactions is 6 per year, with 75% of subscribers making more than 4 transactions annually. These data demonstrate the Young Professional subscribers' strong investment needs and interest.
+
+
+## e. Would this magazine be a good place to advertise for companies selling educational software and computer games for young children?
+
+Yes.
+
+1.From the proportion of households with children and parents' age group: The analysis suggests that 53% of Young Professional subscribers have children, with the proportion exceeding half. Additionally, the Young Professional subscriber group primarily consists of young individuals, which indicates that these parents' children are likely of school age.
+
+2.From household income level: The average household income of Young Professional subscribers is $74,460, and 75% of households have an income greater than $51,625, placing them in the middle-to-upper income level.
+
+3.From the broadband installation status: The analysis indicates that 62% of Young Professional subscribers have broadband installed in their homes, indicating they have access to internet connectivity.
+
+
+## f. Comment on the types of articles you believe would be of interest to readers of *Young Professional*
+
+```{r ci_Gender_Real_Estate, echo=FALSE}
+numer_Gender <- 229 #男性
+ numer_Real_Estate_Purchases <- 181 #有买房意愿
+ n <- 410
+ result_Gender <- prop.test(numer_Gender, n, conf.level = 0.95)
+ result_Gender
+ result_Real_Estate_Purchases <- prop.test(numer_Real_Estate_Purchases, n, conf.level = 0.95)
+ result_Real_Estate_Purchases
+```
+
+Additional analysis inference: 65% of Young Professional subscribers are young males, and 44% of subscribers have the intention to purchase a home. Based on the above analysis, the types of articles that Young Professional subscribers are interested in are as follows:
+
+1.Investment and wealth management
+
+2.Real estate market trends, first-time homebuyer guides
+
+3.Internet technology, the latest digital products, smart homes
+
+4.Children's education
+
+5.Health and lifestyle
+
+6.Professional growth and career development
+
+
+# Question #5 Quality Associate, Inc. (Attached Data: Quality)
+
+```{r Quality, include=FALSE}
+Quality<- read_csv("D:/武汉大学/商务经济统计/作业2/数据/Quality.csv")
+```
+
+## a. Conduct a hypothesis test for each sample at the .01 level of significance and determine what action, if any, should be taken. Provide the p-value for each test.
+
+```{r skim_Quality, echo=FALSE}
+skim(Quality)
+```
+```{r t_test_Sample_1, echo=FALSE}
+t_test_Sample_1 <- t.test(Quality$`Sample 1`, mu=12,  alternative = "two.sided", conf.level = 0.99)
+print(t_test_Sample_1)
+```
+For Sample 1, p = 0.3127 > 0.01, we cannot reject the null hypothesis. The process is considered to be operating normally, and no corrective action is needed.
+
+
+```{r t_test_Sample_2, echo=FALSE}
+t_test_Sample_2 <- t.test(Quality$`Sample 2`, mu=12,  alternative = "two.sided", conf.level = 0.99)
+print(t_test_Sample_2)
+```
+For Sample 2, p = 0.4818 > 0.01, we cannot reject the null hypothesis. The process is considered to be operating normally, and no corrective action is needed.
+
+
+```{r t_test_Sample_3, echo=FALSE}
+t_test_Sample_3 <- t.test(Quality$`Sample 3`, mu=12,  alternative = "two.sided", conf.level = 0.99)
+print(t_test_Sample_3)
+```
+For Sample 3, p = 0.006469 < 0.01, we reject the null hypothesis, and corrective action may be needed.
+
+
+```{r t_test_Sample_4, echo=FALSE}
+t_test_Sample_4 <- t.test(Quality$`Sample 4`, mu=12,  alternative = "two.sided", conf.level = 0.99)
+print(t_test_Sample_4)
+```
+For Sample 4, p = 0.03906 > 0.01, we cannot reject the null hypothesis. The process is considered to be operating normally, and no corrective action is needed.
+
+
+## b. compute the standard deviation for each of the four samples. does the assumption of .21 for the population standard deviation appear reasonable?
+
+H0: σ = 0.21
+H1: σ != 0.21
+
+```{r population_sd, echo=FALSE}
+alpha <- 0.05
+sd_sample1 <- 0.2203560
+sd_sample2 <- 0.2203560
+sd_sample3 <- 0.2071706
+sd_sample4 <- 0.2061090
+n <- 30
+df <- n-1
+population_variance <- 0.21^2
+chi_squared_sample1 <- (df * sd_sample1^2) / population_variance
+chi_squared_sample2 <- (df * sd_sample2^2) / population_variance
+chi_squared_sample3 <- (df * sd_sample3^2) / population_variance
+chi_squared_sample4 <- (df * sd_sample4^2) / population_variance
+
+p_value_sample1 <- 1 - pchisq(chi_squared_sample1, df)
+p_value_sample2 <- 1 - pchisq(chi_squared_sample2, df)
+p_value_sample3 <- 1 - pchisq(chi_squared_sample3, df)
+p_value_sample4 <- 1 - pchisq(chi_squared_sample4, df)
+
+cat("p_value_sample1 =",p_value_sample1,"\n")
+cat("p_value_sample2 =",p_value_sample2,"\n")
+cat("p_value_sample3 =",p_value_sample3,"\n")
+cat("p_value_sample4 =",p_value_sample4)
+```
+For the four samples above, the p-values are all greater than 0.05. There is no significant difference between the sample standard deviations and the hypothesized population standard deviation. Therefore, the assumption that the population standard deviation is 0.21 is reasonable.
+
+
+## c. compute limits for the sample mean $\overline x$ around $\mu=12$ such that, as long as a new sample mean is within those limits, the process will be considered to be operating satisfactorily. if $\overline x$ exceeds the upper limit or if $\overline x$ is below the lower limit, corrective action will be taken. these limits are referred to as upper and lower control limits for quality control purposes.
+
+```{r Limit, echo=FALSE}
+mu <- 12
+Z <- 2.576  # 99%置信度下的Z值
+n <- 30
+s <- 0.21
+SE <- s / sqrt(n)
+Upper_Control_Limit <- mu + Z * SE 
+Lower_Control_Limit <- mu - Z * SE
+cat("Upper Control Limit :", Upper_Control_Limit, "\n")
+cat("Lower Control Limit :", Lower_Control_Limit)
+```
+## d. discuss the implications of changing the level of significance to a larger value. what mistake or error could increase if the level of significance is increased?
+
+Increasing the significance level increases the chance of rejecting the null hypothesis, which in turn increases the probability of making a Type I error.
+
+
+# Question #6: Vacation occupancy rates were expected to be up during March 2008 in Myrtle Beach, South Carolina
+(*the sun news,* February 29, 2008). Data in the file Occupancy (Attached file **Occupancy**) will allow you to replicate 
+the findings presented in the newspaper. The data show units rented and not rented for a random sample of vacation properties 
+during the first week of March 2007 and March 2008.
+
+```{r Occupancy, include=FALSE}
+Occupancy<- read_csv("D:/武汉大学/商务经济统计/作业2/数据/Occupancy.csv")
+```
+
+## a. Estimate the proportion of units rented during the first week of March 2007 and the first week of March 2008.
+
+```{r proportion, echo=FALSE}
+prop_07 <- sum(Occupancy$`Mar-07` == "Yes", na.rm = TRUE) / sum(!is.na(Occupancy$`Mar-07`))
+prop_08 <- sum(Occupancy$`Mar-08` == "Yes", na.rm = TRUE) / sum(!is.na(Occupancy$`Mar-08`))
+cat("The proportion of units rented during the first week of March 2007 is", prop_07, "\n")
+cat("The proportion of units rented during the first week of March 2008 is", prop_08, "\n")
+```
+
+## b. Provide a 95% confidence interval for the difference in proportions.
+```{r prop_test, echo=FALSE}
+#prop.test(x, n, p = NULL, alternative = c("two.sided", "less", "greater"), conf.level = 0.95)
+x <- c(70, 70) # 成功租赁的数量
+n <- c(200, 150) # 样本总数
+result <- prop.test(x = x, n = n)
+print(result)
+```
+The 95% confidence interval for the difference in proportions is: -0.226151510 to -0.007181823.
+
+Since p-value < 0.05, it indicates that there is a significant difference between the proportions for the two years.
+
+## c. On the basis of your findings, does it appear March rental rates for 2008 will be up from those a year earlier?
+
+Yes.Since the confidence interval does not include 0,it indicates that there is a significant difference between the proportions for the two years. Besides, the proportion of units rented during the first week of March 2008 exceeds that of the first week of March 2007.
+
+
+#Question #7:Air Force Training Program (data file: Training)
+
+```{r Training, include=FALSE}
+Training<- read_csv("D:/武汉大学/商务经济统计/作业2/数据/Training.csv")
+```
+
+## a. use appropriate descriptive statistics to summarize the training time data for each method. what similarities or differences do you observe from the sample data?
+
+```{r Training_skim, echo=FALSE}
+skim(Training)
+```
+
+Similarities:
+
+1.The average duration for both methods is similar.
+
+2.The time distribution histograms for both methods are close to a normal distribution.
+
+3.The learning time for 50% of the students in both groups is 76.
+
+Differences:
+
+1.The standard deviation for the Current group is larger than that of the Proposed group, indicating that the learning time for the Proposed group is more consistent.
+
+2.The Proposed group has a smaller range, indicating that the learning times are more concentrated.
+
+## b. Comment on any difference between the population means for the two methods. Discuss your findings.
+
+```{r t_test_Training, echo=FALSE}
+t_test_result <- t.test(Training$Current,Training$Proposed)
+print(t_test_result)
+```
+The 95 percent confidence interval and a p-value > 0.05 indicate that there is no significant difference between the means of the two groups.
+
+## c. compute the standard deviation and variance for each training method. conduct a hypothesis test about the equality of population variances for the two training methods. Discuss your findings.
+
+```{r var_test, echo=FALSE}
+sd_Current <- 3.944907
+  sd_Proposed <- 2.506385
+  variance_Current <- sd_Current^2
+  variance_Proposed <- sd_Proposed^2
+  cat("sd_Current =",sd_Current,"\n")
+  cat("sd_Proposed =",sd_Proposed,"\n")
+  cat("variance_Current =",variance_Current,"\n") 
+  cat("variance_Proposed =", variance_Proposed)  
+var.test(Training$Current, Training$Proposed, conf.level = 0.95)
+```
+The 95 percent confidence interval and a p-value < 0.05 indicate that there is a significant difference between the variances of the two methods.
+
+## d. what conclusion can you reach about any differences between the two methods? what is your recommendation? explain.
+
+It is recommended to adopt the computer-assisted instruction method.
+
+Reason: There is no significant difference between the means of the two groups, but the Proposed group has a smaller range, standard deviation, and variance. Moreover, there is a significant difference in the variances between the two groups, with the Proposed group showing more concentrated and stable learning times. This indicates that the computer-assisted instruction method can improve the efficiency of students who initially progress more slowly, ensuring the overall pace of learning.
+
+
+## e. can you suggest other data or testing that might be desirable before making a final decision on the training program to be used in the future?
+
+1.Data on the subsequent exam scores of the two groups can be introduced to evaluate whether there is a difference in the effectiveness of the two methods.
+
+2.Different classes can be selected for additional 2-3 grouping experiments.
+
+
+#Question 8: The Toyota Camry is one of the best-selling cars in North America. The cost of a previously owned Camry depends upon many factors, including the model year, mileage, and condition. To investigate the relationship between the car’s mileage and the sales price for a 2007 model year Camry, Attached data file Camry show the mileage and sale price for 19 sales (Pricehub website, February 24, 2012).
+
+```{r Camry, include=FALSE}
+Camry<- read_csv("D:/武汉大学/商务经济统计/作业2/数据/Camry.csv")
+```
+
+## a. Develop a scatter diagram with the car mileage on the horizontal axis and the price on the vertical axis.
+
+```{r geom_point, echo=FALSE}
+ggplot(data=Camry)+
+  geom_point(mapping = aes(x=`Miles (1000s)`,y=`Price ($1000s)`))+
+  geom_smooth(mapping = aes(x = `Miles (1000s)`, y = `Price ($1000s)`), method = "lm",color="red")
+```
+
+## b. what does the scatter diagram developed in part (a) indicate about the relationship between the two variables?
+
+From the scatter plot and the added regression line, it can be observed that Price and Miles exhibit a linear negative correlation. This means that as the car's mileage increases, the resale price decreases.
+
+## c. Develop the estimated regression equation that could be used to predict the price ($1000s) given the miles (1000s).
+
+y=16.46976-0.05877x              
+
+y:price ($1000s), x:miles (1000s)
+
+```{r Camry_model, echo=TRUE}
+Camry_model  <- lm(Camry$`Price ($1000s)`~Camry$`Miles (1000s)`,  Camry )
+summary(Camry_model)
+```
+
+## d. Test for a significant relationship at the .05 level of significance.
+
+The mileage has a significant impact on the price, meaning that the mileage has a statistically significant effect on the sales price of the Toyota Camry.
+
+The p-value for the t-test of the intercept is extremely small (much smaller than 0.05), so we can reject the null hypothesis (that the intercept is zero), indicating that the intercept is significant.
+
+The p-value for the mileage coefficient is also smaller than 0.05, so we can reject the null hypothesis (that the mileage coefficient is zero).
+
+## e. Did the estimated regression equation provide a good fit? Explain.
+
+The estimated regression equation provides a good fit.
+
+The residual standard error is 1.541, which is relatively small compared to the price magnitude, indicating that the model fits the data well.
+
+The R² value is 0.5387, suggesting that the model has a certain level of explanatory power.
+
+The F-statistic is 19.85, and the p-value is less than 0.05, indicating that the overall regression model is significant, meaning that the mileage as an independent variable has a meaningful effect on predicting the price.
+
+## f. Provide an interpretation for the slope of the estimated regression equation.
+
+The mileage coefficient is -0.05877. This coefficient indicates that for every additional 1,000 miles of mileage, the price of the Camry decreases by approximately 0.05877 thousand dollars (or about 58.77 dollars). The negative value suggests a negative correlation between mileage and price, meaning that the higher the mileage, the lower the price.
+
+## g. Suppose that you are considering purchasing a previously owned 2007 Camry that has been driven 60,000 miles. Using the estimated regression equation developed in part (c), predict the price for this car. Is this the price you would offer the seller.
+
+```{r Y, echo=FALSE}
+Y <- 16.46976-0.05877*60
+cat("Price ($1000s) =",Y)
+```
+The price of $12.94356 ($1000s) would not be the offer price, as the vehicle still needs a comprehensive evaluation.
+
+There are many factors that influence the pricing of a used car, including the vehicle’s age, mileage, condition (both exterior and mechanical), accident history, and maintenance records.
+
+A 2007 Toyota Camry with 60,000 miles, if in good overall condition and without any accident or maintenance history, could potentially be sold at a higher price. $12.94356 ($1000s) could serve as a reference for the offer price.
+
+
+#Question 9 附件是某提供网站服务的Internet服务商的客户数据。数据包含了6347名客户在11个指标上的表现。
+
+```{r WE, include=FALSE}
+WE<- read_excel("D:/武汉大学/商务经济统计/作业2/数据/WE.xlsx")
+```
+
+## a. 通过可视化探索流失客户与非流失客户的行为特点（或特点对比），你能发现流失与非流失客户行为在哪些指标有可能存在显著不同？
+
+```{r WE_mean, echo=FALSE}
+WE_set <- WE %>% 
+  set_names("ID","churn","happy_index","chg_hi","support","chg_supprt",
+            "priority","chg_priority","log_in_fre","chg_blog_fre","chg_vis","y_age","chg_interval") 
+glimpse(WE_set)
+
+ WE_set %>% 
+  select(-ID) %>% 
+  group_by(churn) %>% 
+  summarise(across(everything(), ~mean(. , na.rm = TRUE))) %>% # 对每一列计算均值
+  ungroup() %>% 
+  kable() %>%       # 用 kable 显示结果
+  kable_styling() 
+```
+
+```{r boxplot, echo=FALSE}
+WE_set_long <- WE_set %>%
+  select(-ID) %>%
+  gather(key = "variable", value = "value", -churn) #将数据从宽格式转化为长格式，方便绘图
+ggplot(WE_set_long, aes(x = factor(churn), y = value, fill = factor(churn))) +  # fill =用于根据 churn 变量的不同分类来填充颜色
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free_y",nrow = 4)  #scales = "free_y",每个子图的 y 轴刻度范围可以独立设置
+```
+The behavior of churned and non-churned customers shows certain differences in terms of the mean values of various indicators and the boxplots.But whether these differences are significant,we need to test.
+
+## b. 通过均值比较的方式验证上述不同是否显著
+
+```{r t_test_WE, echo=FALSE}
+t_test_results <- WE_set %>%
+  select(-churn,-ID) %>%  
+  summarise(across(everything(), ~ t.test(. ~ WE_set$churn)$p.value)) 
+t_test_results
+```
+通过查看p.value（<0.05表明均值有显著性差异）发现：
+
+happy_index、chg_hi、support、priority、log_in_fre、chg_blog_fre、y_age、chg_interval存在显著性差异
+
+chg_supprt、chg_priority、chg_vis没有显著性差异。
+
+##  c. 以”流失“为因变量，其他你认为重要的变量为自变量（提示：a、b两步的发现），建立回归方程对是否流失进行预测
+
+
+```{r model_WE, echo=FALSE}
+ model_iflose <- glm(churn ~ happy_index +
+chg_hi+support+priority+log_in_fre+chg_blog_fre+y_age+chg_interval, family = binomial,data=WE_set)
+summary(model_iflose)
+```
+
+```{r vif, echo=FALSE}
+library(car)
+vif(model_iflose)
+```
+Although four independent variables in the regression model have p-values greater than 0.05, the primary goal of the model is prediction, and since the VIF values are all between 1 and 5, these variables are still retained. The equation is as follows:
+
+iflose = -2.876333-0.005199*happy_index-0.009306*chg_hi-0.022169*support-0.044752*priority+0.000854*log_in_fre-0.000972*chg_blog_fre+0.014256*y_age+0.016950*chg_interval
+
+##  d. 根据上一步预测的结果，对尚未流失（流失=0）的客户进行流失可能性排序，并给出流失可能性最大的前100名用户ID列表。
+```{r}
+WE_set$churn_prob <- predict(model_iflose, newdata =WE_set, type = "response") 
+top_churn_customers <- WE_set %>%
+  filter(churn == 1) %>%
+  arrange(desc(churn_prob)) %>%
+  slice_head(n = 100) %>%
+  select(ID, churn,churn_prob, everything())
+top_churn_customers %>%
+  kable() %>% 
+  kable_styling()
+```
+
+
+
+
+
+
+
+
+
+
